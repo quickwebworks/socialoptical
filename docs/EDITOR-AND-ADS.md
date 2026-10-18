@@ -28,3 +28,6 @@ Tests were rolled back. Browser visual QA, real image upload and full login/edit
 click-through need confirmation in the owner's actual browser. Existing project
 Auth advisor warns that leaked-password protection is disabled; enable it in Auth
 settings if supported by the plan.
+
+
+\n\n## Google tag paste columns\n\nAdvertisements → Google Ad Manager now provides two side-by-side textareas for\nDocument header and Document body, matching Google's tag generator. The parser\nextracts exactly one literal 300x250 GPT slot and verifies matching header/div/display\nIDs. AdSense, unsupported sizes and incomplete/mismatched tags are rejected. Both\nblocks save atomically with placement settings into an admin-only cms_ad_tags table.\nPasted JavaScript is never evaluated. Reader delivery remains a configuration\nplaceholder; live Google ad requests and reporting are not implemented.\n
