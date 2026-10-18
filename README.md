@@ -18,3 +18,10 @@ larger implementation. Live advertising and reporting remain future work.
 
 Deploy as a static project with no build command, output directory `.`, framework
 Other. Configuration contains only a publishable key. Never commit privileged keys.
+
+
+## Editor and ad controls
+
+The admin panel now requires email/password login before showing the workspace.
+Use Posts to edit existing stories or Add post for the rich text editor. Manage
+300x250 creatives and schedules in Advertisements. See [editor documentation](docs/EDITOR-AND-ADS.md).
