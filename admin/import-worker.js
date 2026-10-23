@@ -86,7 +86,7 @@ function collector(opts){
 }
 function parse(sql,opts){const c=collector(opts);statements(sql,c.consume);return c.finish()}
 async function parseFile(file,opts,onProgress=()=>{}){
- if(!file||file.size>250*1024*1024)throw Error('Choose an SQL file up to 250 MB.');
+ if(!file||file.size>400*1024*1024)throw Error('Choose an SQL file up to 400 MB.');
  const c=collector(opts),scanner=statementStream(c.consume),decoder=new TextDecoder('utf-8',{fatal:true});
  const chunkSize=1024*1024;
  for(let offset=0;offset<file.size;offset+=chunkSize){
