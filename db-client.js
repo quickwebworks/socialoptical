@@ -6,5 +6,6 @@ window.SocialDB=(()=>{
  async function login(email,password){const d=await request('/auth/v1/token?grant_type=password',{method:'POST',body:JSON.stringify({email,password})});session={...d,expires_at:Date.now()+d.expires_in*1000};return d.user}
  async function logout(){try{if(session)await request('/auth/v1/logout',{method:'POST'},true)}finally{session=null}}
  async function isAdmin(){if(!session)return false;const rows=await request('/rest/v1/cms_admins?select=user_id&user_id=eq.'+encodeURIComponent(session.user.id),{},true);return rows.length===1}
- return {request,count:(path,privateRequest=true)=>request(path,{method:'HEAD',headers:{Prefer:'count=exact'},returnCount:true},privateRequest),login,logout,isAdmin,user:()=>session?.user};
+ async function isEditor(){if(!session)return false;const rows=await request('/rest/v1/cms_editors?select=user_id&user_id=eq.'+encodeURIComponent(session.user.id),{},true);return rows.length===1}
+ return {request,count:(path,privateRequest=true)=>request(path,{method:'HEAD',headers:{Prefer:'count=exact'},returnCount:true},privateRequest),login,logout,isAdmin,isEditor,user:()=>session?.user};
 })();

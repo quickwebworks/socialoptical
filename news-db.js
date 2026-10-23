@@ -85,5 +85,8 @@ let searchDelay;document.getElementById('search').addEventListener('input',()=>{
 (async()=>{try{await Promise.all([loadPublicAds(),loadTerms().catch(e=>{document.getElementById('navigation').innerHTML='<a href="/">होम</a>';document.getElementById('navigation').title='Categories unavailable: '+e.message})]);if(postId)await showArticle();else await loadFeed()}catch(e){if(!postId)renderEmpty(e.message);else main.textContent='Unable to load this article.'}})();
 async function refreshPublication(){if(postId||busy)return;try{await loadTerms()}catch{}await loadFeed()}
 window.addEventListener('pageshow',e=>{if(e.persisted)refreshPublication()});
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)refreshPublication()});
-window.addEventListener('storage',e=>{if(e.key==='socialoptical-publication-updated')refreshPublication()});
+// Returning to a tab must not recreate ads and generate repeat impressions.
+function publicationStamp(){try{return localStorage.getItem('socialoptical-publication-updated')}catch{return null}}
+let publicationVersion=publicationStamp();
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){const next=publicationStamp();if(next!==publicationVersion){publicationVersion=next;refreshPublication()}}});
+window.addEventListener('storage',e=>{if(e.key==='socialoptical-publication-updated'){publicationVersion=e.newValue;refreshPublication()}});
