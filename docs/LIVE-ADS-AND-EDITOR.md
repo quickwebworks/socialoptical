@@ -32,4 +32,4 @@ Database role tests ran in a rolled-back transaction and checked own-post creati
 
 ## Source synchronization
 
-Automatic EarlyNews24 syncing is not enabled. Existing posts came from SQL imports, and corrected photo links still point to EarlyNews24. No scheduler or webhook was added.
+Automatic source sync is now scheduled every five minutes. See AUTOMATIC-SYNC.md for authentication, retry behavior, RSS fallback limitations and how to monitor it.
