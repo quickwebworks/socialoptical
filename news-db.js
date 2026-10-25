@@ -4,7 +4,7 @@ const query=new URLSearchParams(location.search),category=query.get('category'),
 const PAGE_SIZE=24,fields='id,title,slug,excerpt,featured_image_url,published_at,cms_post_terms(cms_terms(id,name,slug,kind))';
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function textOnly(html){return new DOMParser().parseFromString(String(html||''),'text/html').body.textContent||''}
-function webURL(value){try{const u=new URL(value);return ['http:','https:'].includes(u.protocol)?u.href:null}catch{return null}}
+function webURL(value){try{const u=new URL(window.resolveMediaURL?window.resolveMediaURL(value):value);return ['http:','https:'].includes(u.protocol)?u.href:null}catch{return null}}
 function terms(p,kind){return (p.cms_post_terms||[]).map(x=>x.cms_terms).filter(t=>t?.kind===kind)}
 function termLink(t){return '/?'+(t.kind==='tag'?'tag':'category')+'='+encodeURIComponent(t.slug)}
 function postLink(p){return '/?post='+encodeURIComponent(p.id)}
