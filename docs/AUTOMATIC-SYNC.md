@@ -1,29 +1,22 @@
-# EarlyNews24 → Socialoptical source sync
+# EarlyNews24 to Socialoptical automatic synchronization
 
-The production Supabase project `totzocwtklrzgjnxnoqx` runs Edge Function `sync-earlynews24`, called every five minutes by Cron job `earlynews24-to-socialoptical`. Authentication is a random scheduler token stored encrypted in Vault, compared against a private hash; only server-side service credentials can invoke the database sync RPCs. Browser clients cannot invoke them or read the token. Do not copy Vault contents or server credentials into GitHub.
+The source is now the current EarlyNews24 Supabase CMS (jwyclfnduvavzdjosdlq), not WordPress REST or RSS. The existing Socialoptical cron job invokes sync-earlynews24 every five minutes. No browser or admin tab needs to remain open.
 
-The importer first tries WordPress REST with modification windows and embedded terms/media. When REST is unavailable it uses the public RSS feed and article HTML metadata. All HTML is sanitized. RSS includes full content but not featured pictures, so source article pages must load for pictures and exact tag metadata. Inaccessible articles are skipped and retried; successfully fetched articles remain saved. A run with skipped articles is marked error/partial and does not advance its checkpoint. A private backup of pre-sync posts exists in `cms_sync_private.posts_before_sync`.
+## What copies
+Published posts whose publication date has arrived: title, excerpt, sanitized body, publication date, featured image URL, categories and tags. New posts and changes to published post rows are checked using updated_at and published_at, a fixed cutoff and ten-minute overlap. Scheduled posts become eligible once their date arrives. Keyset pagination handles up to 2000 changed records in one run. A failed run retains its checkpoint for retry.
 
-Existing imported records are matched by stable source ID + slug (the previous SQL import used Socialoptical as source origin), and future runs use a private post map + content hash. This preserves UUID article URLs and avoids duplicate rows on retries. Local statuses, owners, slugs and SEO overrides are preserved. Source-owned content and taxonomy update when it changes. No source deletion/unpublish propagation is implemented. No ads or roles are changed by the importer.
+Stable numeric import IDs continue matching existing imported posts. Posts created in the new CMS use cms- followed by the source post UUID. Destination mapping plus a content hash makes repeated runs idempotent. Existing local Socialoptical draft/private status, owner, slug and SEO overrides are preserved. No destination posts or accounts are deleted.
 
-## Current source limitation
+Photos remain on Hostinger. Old earlynews24.com/wp-content/uploads/YYYY/MM references are rewritten to https://media.earlynews24.com/YYYY/MM in featured and inline images. New cms-uploads image URLs are retained. No photo binary is copied to GitHub, Vercel or Supabase Storage.
 
-At installation, WordPress REST and paginated RSS endpoints returned HTTP 500. Some individual article pages also return HTTP 500. Accessible recent RSS articles are imported with pictures; other articles remain retryable failures. Older backlog cannot be guaranteed while paginated endpoints fail. RSS cannot reliably detect edits outside its recent window. Source server PHP/error logs must be repaired for complete historical and modification coverage. No checkpoint is advanced after a partial article failure.
+## Security
+Only the source publication's public, RLS-filtered published content is read, using its public publishable key. Draft/private data and editor accounts are not read. Destination writes use the Edge Function's built-in service credential, never browser code. The existing Vault-backed x-sync-token is checked by cms_sync_start; unauthenticated invocation is rejected. No new key is created or revealed. All sync RPCs remain service-role-only; admin-only run logs are protected with RLS.
 
-## Monitor
+## Status
+Socialoptical admin > Overview > EarlyNews24 automatic sync shows last run, success/error, added/updated/checked counts and source mode supabase-cms. Reader pages load current database posts when opened or refreshed. An already-open reader tab is not a live subscription.
 
-Admin → Overview → EarlyNews24 automatic sync shows last attempt, last complete success, counts and source errors. Publication editors cannot read these logs. The history also appears in `public.cms_sync_runs` in the Supabase SQL Editor. Cron job history proves scheduling; application run history proves actual import results. These are different checks.
+## Limits
+Only publicly published source posts can be read. Removing, unpublishing or deleting a source post is not propagated as a destination deletion or unpublish. Category/tag changes saved with a post are copied; editing a term independently does not advance the post's update timestamp. This is one-way synchronization; edits made only on Socialoptical are not written back to EarlyNews24.
 
-## Pause before replacing WordPress
-
-The importer fetches https://earlynews24.com. If that domain is switched to the new database-backed frontend, WordPress's feed and API disappear at that address. Both new frontends already share the same database and need no cross-site import for CMS-created posts. Pause the importer before that cutover:
-
-```sql
-select cron.alter_job(job_id := (select jobid from cron.job where jobname='earlynews24-to-socialoptical'), active := false);
-```
-
-If WordPress must remain the authoring source, retain it at a separate source hostname and change the importer's fixed origin and normalization rules before enabling it again. Do not point the source importer at its own destination frontend.
-
-## Deployment source
-
-`database/earlynews-sync.sql` installs the tables and RPCs in a fresh configured database, once. `supabase/functions/sync-earlynews24` contains the Edge Function. `database/earlynews-sync-schedule.sql` enables the scheduling extensions and creates the five-minute job. The schema has already been applied in production; do not run the initial installer again against production. Secret creation is server-side only.
+## Source and database migration
+supabase/functions/sync-earlynews24 contains the deployed code. database/earlynews-cms-sync.sql updates the existing batch RPC to accept stable CMS UUID-based source identifiers while preserving legacy mappings and access controls. It is an incremental migration after earlynews-sync.sql, not a replacement database installer.

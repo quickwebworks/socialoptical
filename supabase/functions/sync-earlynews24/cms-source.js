@@ -1,0 +1,10 @@
+export const SOURCE_API='https://jwyclfnduvavzdjosdlq.supabase.co';
+export const SOURCE_KEY='sb_publishable_PgNnyQNHyw9SdVoCeT4ujg_LaItVY6J';
+export function mediaURL(value){if(!value)return null;try{const u=new URL(value);if(!['http:','https:'].includes(u.protocol)||u.username||u.password)return null;const prefix='/wp-content/uploads/';if(['earlynews24.com','www.earlynews24.com'].includes(u.hostname)&&u.pathname.startsWith(prefix))return 'https://media.earlynews24.com/'+u.pathname.slice(prefix.length)+u.search;return u.href}catch{return null}}
+export function normalizeCMSPost(p,clean,plain){
+ if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(p.id)||p.status!=='publish')throw Error('Invalid published CMS post');
+ const published=new Date(p.published_at),modified=new Date(p.updated_at);if(!p.published_at||!p.updated_at||!Number.isFinite(published.getTime())||!Number.isFinite(modified.getTime()))throw Error('Invalid source timestamp');
+ const taxonomy=[];for(const link of p.cms_post_terms||[]){const t=link.cms_terms;if(!t||!['category','tag'].includes(t.kind)||!t.slug||!t.name)continue;if(!taxonomy.some(x=>x.kind===t.kind&&x.slug===t.slug))taxonomy.push({kind:t.kind,slug:t.slug,name:plain(t.name)});}
+ return {source_id:/^\d+$/.test(p.source_id||'')?String(p.source_id):'cms-'+p.id.toLowerCase(),slug:p.slug,title:plain(p.title),excerpt:plain(p.excerpt||'').slice(0,1200),content_html:clean(p.content_html||''),featured_image_url:mediaURL(p.featured_image_url),published_at:published.toISOString(),modified_at:modified.toISOString(),taxonomy};
+}
+export function sourceQuery(since,cutoff,cursor){const conditions=['or(updated_at.gte.'+since+',published_at.gte.'+since+')'];if(cursor)conditions.push('or(updated_at.gt.'+cursor.updated_at+',and(updated_at.eq.'+cursor.updated_at+',id.gt.'+cursor.id+'))');return new URLSearchParams({select:'id,source_id,slug,title,excerpt,content_html,featured_image_url,status,published_at,updated_at,cms_post_terms(cms_terms(kind,name,slug))',status:'eq.publish',published_at:'lte.'+cutoff,updated_at:'lte.'+cutoff,and:'('+conditions.join(',')+')',order:'updated_at.asc,id.asc',limit:'25'});}
