@@ -5,7 +5,7 @@
   "rewrites": [
     {
       "source": "/news/:path*",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
