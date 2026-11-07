@@ -1,13 +1,13 @@
 const main=document.getElementById('databaseNews');
 let currentPage=0,activeTerms=[],busy=false,homeGeneration=0;
-const query=new URLSearchParams(location.search),category=query.get('category'),tag=query.get('tag'),postId=query.get('post');
+const query=new URLSearchParams(location.search),category=query.get('category'),tag=query.get('tag'),postId=query.get('post'),postSlug=window.PublicationURLs.slugFromLocation(location),isArticle=!!(postId||postSlug);
 const PAGE_SIZE=24,fields='id,title,slug,excerpt,featured_image_url,published_at,cms_post_terms(cms_terms(id,name,slug,kind))';
 function escapeHTML(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 function textOnly(html){return new DOMParser().parseFromString(String(html||''),'text/html').body.textContent||''}
 function webURL(value){try{const u=new URL(window.resolveMediaURL?window.resolveMediaURL(value):value);return ['http:','https:'].includes(u.protocol)?u.href:null}catch{return null}}
 function terms(p,kind){return (p.cms_post_terms||[]).map(x=>x.cms_terms).filter(t=>t?.kind===kind)}
 function termLink(t){return '/?'+(t.kind==='tag'?'tag':'category')+'='+encodeURIComponent(t.slug)}
-function postLink(p){return '/?post='+encodeURIComponent(p.id)}
+function postLink(p){return window.PublicationURLs.postLink(p)}
 function ad(placement='feed'){return window.renderAdMarkup(placement)}
 function formatDate(date){return date?new Date(date).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):''}
 function age(date){if(!date)return '';const days=Math.max(0,Math.floor((Date.now()-new Date(date).getTime())/86400000));if(days===0)return 'Today';if(days===1)return '1 day ago';return days<31?days+' days ago':formatDate(date)}
@@ -27,7 +27,7 @@ async function loadTerms(){
  const link=t=>'<a class="'+(category===t.slug?'selected':'')+'" href="'+termLink(t)+'">'+escapeHTML(t.menu_label||t.name)+'</a>';
  const menu=activeTerms.filter(t=>t.kind==='category'&&t.menu_position!=null).sort((a,b)=>a.menu_position-b.menu_position).filter((t,i,all)=>all.findIndex(x=>x.menu_position===t.menu_position)===i);
  const more=menu.filter(t=>t.menu_group==='more');
- document.getElementById('navigation').innerHTML='<a class="'+(!category&&!tag&&!postId?'selected':'')+'" href="/">होम</a>'+menu.filter(t=>t.menu_group==='main').map(t=>t.slug==='lifestyle'?'<details class="nav-dropdown"><summary>'+escapeHTML(t.menu_label)+'</summary><div>'+link(t)+menu.filter(t=>t.menu_group==='lifestyle').map(link).join('')+'</div></details>':link(t)).join('')+(more.length?'<details class="nav-dropdown"><summary>More</summary><div>'+more.map(link).join('')+'</div></details>':'');
+ document.getElementById('navigation').innerHTML='<a class="'+(!category&&!tag&&!isArticle?'selected':'')+'" href="/">होम</a>'+menu.filter(t=>t.menu_group==='main').map(t=>t.slug==='lifestyle'?'<details class="nav-dropdown"><summary>'+escapeHTML(t.menu_label)+'</summary><div>'+link(t)+menu.filter(t=>t.menu_group==='lifestyle').map(link).join('')+'</div></details>':link(t)).join('')+(more.length?'<details class="nav-dropdown"><summary>More</summary><div>'+more.map(link).join('')+'</div></details>':'');
  document.getElementById('menuPanel').innerHTML='<a href="/">होम</a>'+menu.map(link).join('');
  document.getElementById('footerCategories').innerHTML=menu.slice(0,10).map(link).join('');
  const topic=document.getElementById('topicLinks');if(topic)topic.innerHTML=activeTerms.filter(t=>t.kind==='tag').slice(0,24).map(t=>'<a class="chip" href="'+termLink(t)+'">#'+escapeHTML(t.name)+'</a>').join('');
@@ -76,15 +76,15 @@ async function loadFeed(append=false){
  }catch(e){renderEmpty('Could not load stories: '+e.message)}finally{busy=false}
 }
 function renderEmpty(message){document.getElementById('homeTop').hidden=true;document.getElementById('categorySections').innerHTML='';document.getElementById('livePosts').innerHTML='<div class="db-empty"><p>'+escapeHTML(message)+'</p></div>';document.getElementById('loadMore').hidden=true;document.getElementById('feedState').textContent=''}
-async function showArticle(){if(!/^[0-9a-f-]{36}$/i.test(postId)){main.innerHTML='<p class="empty">Article not found.</p>';return}try{const posts=await SocialDB.request('/rest/v1/cms_posts?select=*,cms_post_terms(cms_terms(id,name,slug,kind))&id=eq.'+encodeURIComponent(postId)+'&limit=1');const p=posts[0];if(!p){main.innerHTML='<p class="empty">Article not found or not published.</p>';return}document.title=(p.seo_title||textOnly(p.title))+' — Socialoptical';if(p.seo_description)document.querySelector('meta[name=description]').content=p.seo_description;const image=webURL(p.featured_image_url);main.innerHTML='<div class="article-layout"><article class="article-page"><a class="category" href="/">← All news</a><div class="category" style="margin-top:24px">'+terms(p,'category').map(t=>'<a href="'+termLink(t)+'">'+escapeHTML(t.name)+'</a>').join(' · ')+'</div><h1>'+escapeHTML(textOnly(p.title))+'</h1><p class="meta">'+escapeHTML(formatDate(p.published_at))+'</p>'+(image?'<img class="article-hero" src="'+escapeHTML(image)+'" alt="'+escapeHTML(textOnly(p.title))+'">':'')+'<div id="articleBody" class="article-body"></div><div class="tag-links">'+terms(p,'tag').map(t=>'<a class="chip" href="'+termLink(t)+'">#'+escapeHTML(t.name)+'</a>').join(' ')+'</div></article><aside class="article-rail">'+ad('article_sidebar')+'</aside></div>';
+async function showArticle(){if(!postSlug&&!/^[0-9a-f-]{36}$/i.test(postId)){main.innerHTML='<p class="empty">Article not found.</p>';return}try{const lookup=new URLSearchParams({select:'*,cms_post_terms(cms_terms(id,name,slug,kind))',status:'eq.publish',published_at:'lte.'+new Date().toISOString(),limit:'2'});lookup.set(postSlug?'slug':'id','eq.'+(postSlug||postId));let posts=await SocialDB.request('/rest/v1/cms_posts?'+lookup);if(!posts.length&&postSlug){const resolved=await resolveArticleSlug(postSlug);if(resolved){lookup.delete('slug');lookup.set('id','eq.'+resolved);posts=await SocialDB.request('/rest/v1/cms_posts?'+lookup)}}const p=posts[0];if(!p){main.innerHTML='<p class="empty">Article not found or not published.</p>';return}const canonical=new URL(postLink(p),location.origin);history.replaceState(null,'',canonical.pathname+location.hash);let canonicalLink=document.querySelector('link[rel=canonical]');if(!canonicalLink){canonicalLink=document.createElement('link');canonicalLink.rel='canonical';document.head.append(canonicalLink)}canonicalLink.href=canonical.href;document.title=(p.seo_title||textOnly(p.title))+' — Socialoptical';if(p.seo_description)document.querySelector('meta[name=description]').content=p.seo_description;const image=webURL(p.featured_image_url);main.innerHTML='<div class="article-layout"><article class="article-page"><a class="category" href="/">← All news</a><div class="category" style="margin-top:24px">'+terms(p,'category').map(t=>'<a href="'+termLink(t)+'">'+escapeHTML(t.name)+'</a>').join(' · ')+'</div><h1>'+escapeHTML(textOnly(p.title))+'</h1><p class="meta">'+escapeHTML(formatDate(p.published_at))+'</p>'+(image?'<img class="article-hero" src="'+escapeHTML(image)+'" alt="'+escapeHTML(textOnly(p.title))+'">':'')+'<div id="articleBody" class="article-body"></div><div class="tag-links">'+terms(p,'tag').map(t=>'<a class="chip" href="'+termLink(t)+'">#'+escapeHTML(t.name)+'</a>').join(' ')+'</div></article><aside class="article-rail" aria-label="Article sidebar advertisement">'+ad('article_sidebar')+'</aside></div>';
  const body=document.getElementById('articleBody');body.appendChild(safeArticle(p.content_html));insertArticleAds(body);}catch(e){main.innerHTML='<p class="empty">'+escapeHTML(e.message)+'</p>'}}
 
 function toggleSearch(){const bar=document.getElementById('searchbar');bar.hidden=!bar.hidden;if(!bar.hidden)document.getElementById('search').focus()}
 function toggleMenu(){const panel=document.getElementById('menuPanel');panel.hidden=!panel.hidden;document.querySelector('.menu-toggle').setAttribute('aria-expanded',String(!panel.hidden))}
-function clearSearch(){document.getElementById('search').value='';if(postId)location.href='/';else loadFeed()}
-let searchDelay;document.getElementById('search').addEventListener('input',()=>{clearTimeout(searchDelay);searchDelay=setTimeout(()=>{if(!postId)loadFeed()},400)});
-(async()=>{try{await Promise.all([loadPublicAds(),loadTerms().catch(e=>{document.getElementById('navigation').innerHTML='<a href="/">होम</a>';document.getElementById('navigation').title='Categories unavailable: '+e.message})]);if(postId)await showArticle();else await loadFeed()}catch(e){if(!postId)renderEmpty(e.message);else main.textContent='Unable to load this article.'}})();
-async function refreshPublication(){if(postId||busy)return;try{await loadTerms()}catch{}await loadFeed()}
+function clearSearch(){document.getElementById('search').value='';if(isArticle)location.href='/';else loadFeed()}
+let searchDelay;document.getElementById('search').addEventListener('input',()=>{clearTimeout(searchDelay);searchDelay=setTimeout(()=>{if(!isArticle)loadFeed()},400)});
+(async()=>{try{await Promise.all([loadPublicAds(),loadTerms().catch(e=>{document.getElementById('navigation').innerHTML='<a href="/">होम</a>';document.getElementById('navigation').title='Categories unavailable: '+e.message})]);if(isArticle)await showArticle();else await loadFeed()}catch(e){if(!isArticle)renderEmpty(e.message);else main.textContent='Unable to load this article.'}})();
+async function refreshPublication(){if(isArticle||busy)return;try{await loadTerms()}catch{}await loadFeed()}
 window.addEventListener('pageshow',e=>{if(e.persisted)refreshPublication()});
 // Returning to a tab must not recreate ads and generate repeat impressions.
 function publicationStamp(){try{return localStorage.getItem('socialoptical-publication-updated')}catch{return null}}
@@ -98,4 +98,15 @@ function insertArticleAds(body){
  const anchors=[1,2,3].map(n=>blocks[Math.max(0,Math.ceil(blocks.length*n/4)-1)]);
  anchors.forEach((anchor,i)=>{const markup=ad('article_inline');if(!markup)return;const range=document.createElement('div');range.className='article-ad-position';range.dataset.articleAd=String(i+1);range.innerHTML=markup;if(anchor)anchor.after(range);else body.append(range)});
  body.insertAdjacentHTML('afterend','<div class="post-ad-position">'+ad('feed')+'</div>');
+}
+
+async function resolveArticleSlug(slug){
+ // Imported records can contain spaces, punctuation or WordPress percent escapes.
+ // Resolve against public records only; the final article read still obeys RLS.
+ const normalize=window.PublicationURLs.normalize;const target=normalize(slug);
+ if(!target||target!==slug)return null;
+ const query=new URLSearchParams({select:'id,slug,title',status:'eq.publish',published_at:'lte.'+new Date().toISOString(),order:'id',limit:'200'});
+ let match=null;
+ for(let offset=0;;offset+=200){query.set('offset',String(offset));const rows=await SocialDB.request('/rest/v1/cms_posts?'+query);for(const p of rows){if(normalize(p.slug||p.title)===target){if(match)throw Error('More than one story uses this slug. Please give these posts unique slugs in Admin.');match=p.id}}if(rows.length<200)break;}
+ return match;
 }
