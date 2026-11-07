@@ -47,6 +47,7 @@ function renderHomeTop(posts){
  document.getElementById('latestPosts').innerHTML=posts.slice(3,9).map(compactCard).join('');
  document.getElementById('sideLatest').innerHTML=posts.slice(0,5).map(compactCard).join('');
  document.getElementById('homepageAdSlot').innerHTML=ad('lead_sidebar');
+ let homeAd=document.getElementById('homepageAfterCategoriesAd');if(!homeAd){homeAd=document.createElement('div');homeAd.id='homepageAfterCategoriesAd';document.getElementById('categorySections').after(homeAd)}homeAd.innerHTML=ad('feed');
  document.getElementById('sidebarAdSlot').innerHTML=ad('article_sidebar');
 }
 async function loadCategorySections(generation){
@@ -58,7 +59,7 @@ async function loadFeed(append=false){
  if(busy)return;busy=true;
  try{
   const search=document.getElementById('search').value.trim();const isHome=!category&&!tag&&!search;
-  if(!append){currentPage=0;homeGeneration++;document.getElementById('homeTop').hidden=true;document.getElementById('categorySections').innerHTML='';document.getElementById('livePosts').innerHTML='<p class="empty">Loading stories…</p>'}
+  if(!append){document.getElementById('homepageAfterCategoriesAd')?.remove();currentPage=0;homeGeneration++;document.getElementById('homeTop').hidden=true;document.getElementById('categorySections').innerHTML='';document.getElementById('livePosts').innerHTML='<p class="empty">Loading stories…</p>'}
   const term=(category||tag)?activeTerms.find(t=>t.kind===(tag?'tag':'category')&&t.slug===(tag||category)):null;
   const heading=document.getElementById('feedHeading');heading.hidden=isHome;heading.textContent=term?(tag?'#':'')+(term.menu_label||term.name):(search?'Search: '+search:'');
   document.getElementById('moreHeading').hidden=!isHome;
@@ -76,7 +77,7 @@ async function loadFeed(append=false){
 }
 function renderEmpty(message){document.getElementById('homeTop').hidden=true;document.getElementById('categorySections').innerHTML='';document.getElementById('livePosts').innerHTML='<div class="db-empty"><p>'+escapeHTML(message)+'</p></div>';document.getElementById('loadMore').hidden=true;document.getElementById('feedState').textContent=''}
 async function showArticle(){if(!/^[0-9a-f-]{36}$/i.test(postId)){main.innerHTML='<p class="empty">Article not found.</p>';return}try{const posts=await SocialDB.request('/rest/v1/cms_posts?select=*,cms_post_terms(cms_terms(id,name,slug,kind))&id=eq.'+encodeURIComponent(postId)+'&limit=1');const p=posts[0];if(!p){main.innerHTML='<p class="empty">Article not found or not published.</p>';return}document.title=(p.seo_title||textOnly(p.title))+' — Socialoptical';if(p.seo_description)document.querySelector('meta[name=description]').content=p.seo_description;const image=webURL(p.featured_image_url);main.innerHTML='<div class="article-layout"><article class="article-page"><a class="category" href="/">← All news</a><div class="category" style="margin-top:24px">'+terms(p,'category').map(t=>'<a href="'+termLink(t)+'">'+escapeHTML(t.name)+'</a>').join(' · ')+'</div><h1>'+escapeHTML(textOnly(p.title))+'</h1><p class="meta">'+escapeHTML(formatDate(p.published_at))+'</p>'+(image?'<img class="article-hero" src="'+escapeHTML(image)+'" alt="'+escapeHTML(textOnly(p.title))+'">':'')+'<div id="articleBody" class="article-body"></div><div class="tag-links">'+terms(p,'tag').map(t=>'<a class="chip" href="'+termLink(t)+'">#'+escapeHTML(t.name)+'</a>').join(' ')+'</div></article><aside class="article-rail">'+ad('article_sidebar')+'</aside></div>';
- const body=document.getElementById('articleBody');body.appendChild(safeArticle(p.content_html));const blocks=body.querySelectorAll(':scope > p');if(blocks.length>=4)blocks[2].insertAdjacentHTML('afterend',ad('article_inline'));}catch(e){main.innerHTML='<p class="empty">'+escapeHTML(e.message)+'</p>'}}
+ const body=document.getElementById('articleBody');body.appendChild(safeArticle(p.content_html));insertArticleAds(body);}catch(e){main.innerHTML='<p class="empty">'+escapeHTML(e.message)+'</p>'}}
 
 function toggleSearch(){const bar=document.getElementById('searchbar');bar.hidden=!bar.hidden;if(!bar.hidden)document.getElementById('search').focus()}
 function toggleMenu(){const panel=document.getElementById('menuPanel');panel.hidden=!panel.hidden;document.querySelector('.menu-toggle').setAttribute('aria-expanded',String(!panel.hidden))}
@@ -90,3 +91,11 @@ function publicationStamp(){try{return localStorage.getItem('socialoptical-publi
 let publicationVersion=publicationStamp();
 document.addEventListener('visibilitychange',()=>{if(!document.hidden){const next=publicationStamp();if(next!==publicationVersion){publicationVersion=next;refreshPublication()}}});
 window.addEventListener('storage',e=>{if(e.key==='socialoptical-publication-updated'){publicationVersion=e.newValue;refreshPublication()}});
+
+// Spread three inline rectangles across available content blocks, including imported div-based posts.
+function insertArticleAds(body){
+ const blocks=[...body.children].filter(el=>el.textContent.trim()||el.querySelector('img'));
+ const anchors=[1,2,3].map(n=>blocks[Math.max(0,Math.ceil(blocks.length*n/4)-1)]);
+ anchors.forEach((anchor,i)=>{const markup=ad('article_inline');if(!markup)return;const range=document.createElement('div');range.className='article-ad-position';range.dataset.articleAd=String(i+1);range.innerHTML=markup;if(anchor)anchor.after(range);else body.append(range)});
+ body.insertAdjacentHTML('afterend','<div class="post-ad-position">'+ad('feed')+'</div>');
+}
