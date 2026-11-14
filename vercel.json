@@ -4,8 +4,13 @@
   "outputDirectory": ".",
   "rewrites": [
     {
-      "source": "/news/:path*",
+      "source": "/news/:slug",
+      "destination": "/api/article"
+    },
+    {
+      "source": "/news/:slug/",
       "destination": "/api/article"
     }
-  ]
+  ],
+  "trailingSlash": false
 }
