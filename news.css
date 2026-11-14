@@ -17,3 +17,6 @@
 .article-rail>.ad-wrap{width:300px;max-width:300px;margin:0}
 .article-rail .gpt-slot,.article-rail .direct-banner,.article-rail .direct-banner img{width:300px;height:250px}
 @media(max-width:760px){.article-layout{display:flex;flex-direction:column;gap:24px}.article-page{width:100%}.article-rail{position:static;align-self:center;max-width:100%;margin:0 auto 24px}}
+
+/* Two independent 300x250 homepage placements, stacked below one another. */
+.homepage-ad-stack{display:flex;flex-direction:column;gap:24px;width:300px;max-width:100%;margin:0 auto}.homepage-ad-stack>.ad-wrap{width:300px;max-width:100%;margin:0}

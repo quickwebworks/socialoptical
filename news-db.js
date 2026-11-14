@@ -46,7 +46,7 @@ function renderHomeTop(posts){
  document.getElementById('trendingPosts').innerHTML=(breaking.length>=3?breaking:posts.slice(3)).slice(0,5).map(rankedCard).join('');
  document.getElementById('latestPosts').innerHTML=posts.slice(3,9).map(compactCard).join('');
  document.getElementById('sideLatest').innerHTML=posts.slice(0,5).map(compactCard).join('');
- document.getElementById('homepageAdSlot').innerHTML=ad('lead_sidebar');
+ document.getElementById('homepageAdSlot').innerHTML='<div class="homepage-ad-stack">'+ad('lead_sidebar')+ad('lead_sidebar_second')+'</div>';
  let homeAd=document.getElementById('homepageAfterCategoriesAd');if(!homeAd){homeAd=document.createElement('div');homeAd.id='homepageAfterCategoriesAd';document.getElementById('categorySections').after(homeAd)}homeAd.innerHTML=ad('feed');
  document.getElementById('sidebarAdSlot').innerHTML=ad('article_sidebar');
 }
